@@ -35,7 +35,7 @@ class Wrapper
         $this->setPreferredLocale(
             $settings,
             $requestParameters,
-            $_SESSION,
+            $_SESSION ?? [],
             $requestHeaders,
         );
 
