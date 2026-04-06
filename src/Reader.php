@@ -31,7 +31,7 @@ class Reader
      * @throws DomainNotFoundException If no translation file was found
      * @throws TranslationInvalidException If translation file found is not convertible to JSON
      */
-    private function setTranslations(string $domain = null): void
+    private function setTranslations(?string $domain = null): void
     {
         $fileName = $this->getFileName($this->settings->getPreferredLocale(), $domain);
         if (!file_exists($fileName)) {
@@ -69,7 +69,7 @@ class Reader
      * @throws TranslationInvalidException If translation file found is not convertible to JSON
      * @return string
      */
-    public function getTranslation(string $key, string $domain=null): string
+    public function getTranslation(string $key, ?string $domain=null): string
     {
         if (!$domain) {
             $domain = $this->settings->getDomain();
