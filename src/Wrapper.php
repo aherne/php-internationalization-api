@@ -5,7 +5,7 @@ namespace Lucinda\Internationalization;
 /**
  * Reads internationalization tag in order to detect locale settings to be used by reader/writer
  */
-class Wrapper
+final class Wrapper
 {
     private Settings $settings;
 
@@ -73,14 +73,14 @@ class Wrapper
         $preferredLocale = $localeDetector->getDetectedLocale();
         $settings->setPreferredLocale($preferredLocale!==null ? $preferredLocale : $settings->getDefaultLocale());
 
-        // compiles settings
-        if (!file_exists($settings->getFolder().DIRECTORY_SEPARATOR.$settings->getPreferredLocale())) {
-            // if input locale is not supported, use default
-            if (!file_exists($settings->getFolder().DIRECTORY_SEPARATOR.$settings->getDefaultLocale())) {
-                throw new ConfigurationException("Translations not set for default locale");
+        foreach ($settings->getLocaleFallbacks() as $locale) {
+            if (file_exists($settings->getFolder().DIRECTORY_SEPARATOR.$locale)) {
+                $settings->setPreferredLocale($locale);
+                return;
             }
-            $settings->setPreferredLocale($settings->getDefaultLocale()); // overrides not supported preferred locale with default
         }
+
+        throw new ConfigurationException("Translations not set for default locale");
     }
 
     /**

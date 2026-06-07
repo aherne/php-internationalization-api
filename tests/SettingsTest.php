@@ -4,7 +4,9 @@ namespace Test\Lucinda\Internationalization;
 
 use Lucinda\Internationalization\LocaleDetectionMethod;
 use Lucinda\Internationalization\Settings;
-use Lucinda\UnitTest\Result;
+use Lucinda\UnitTest\Validator\Arrays;
+use Lucinda\UnitTest\Validator\Booleans;
+use Lucinda\UnitTest\Validator\Strings;
 
 class SettingsTest
 {
@@ -23,43 +25,49 @@ class SettingsTest
 
     public function getLocalizationMethod()
     {
-        return new Result($this->object->getLocalizationMethod()==LocaleDetectionMethod::HEADER);
+        return (new Booleans($this->object->getLocalizationMethod() == LocaleDetectionMethod::HEADER))->assertTrue();
     }
 
 
     public function getDefaultLocale()
     {
-        return new Result($this->object->getDefaultLocale()=="en_US");
+        return (new Strings($this->object->getDefaultLocale()))->assertEquals("en_US");
     }
 
 
     public function getDomain()
     {
-        return new Result($this->object->getDomain()=="messages");
+        return (new Strings($this->object->getDomain()))->assertEquals("messages");
     }
 
 
     public function getFolder()
     {
-        return new Result($this->object->getFolder()=="locales");
+        return (new Strings($this->object->getFolder()))->assertEquals("locales");
     }
 
 
     public function getExtension()
     {
-        return new Result($this->object->getExtension()=="json");
+        return (new Strings($this->object->getExtension()))->assertEquals("json");
     }
 
 
     public function setPreferredLocale()
     {
         $this->object->setPreferredLocale("fr_FR");
-        return new Result(true);
+        return (new Booleans(true))->assertTrue();
     }
 
 
     public function getPreferredLocale()
     {
-        return new Result($this->object->getPreferredLocale()=="fr_FR");
+        return (new Strings($this->object->getPreferredLocale()))->assertEquals("fr_FR");
+    }
+
+    public function getLocaleFallbacks()
+    {
+        $this->object->setPreferredLocale("fr_CA");
+        return (new Arrays($this->object->getLocaleFallbacks()))->assertEquals(["fr_CA", "fr", "en_US"]);
     }
 }

@@ -1,172 +1,234 @@
-# Internationalization & Localization API
+# Internationalization API
 
-Table of contents:
+Small PHP internationalization package for detecting a user's locale, reading translations from JSON files, and writing translation files back to disk.
 
-- [About](#about)
-    - [How Are Locales Detected](#how-are-locales-detected)
-    - [How Are Translations Stored](#how-are-translations-stored)
-- [Configuration](#configuration)
-- [Execution](#execution)
-- [Installation](#installation)
-- [Unit Tests](#unit-tests)
-- [Reference Guide](#reference-guide)
+The package is intentionally compact:
 
-## About 
-
-This API is a very light weight platform that allows presentation logic (views) to be automatically translated based on user locale (see [how are locales detected](#how-are-locales-detected)). In order to achieve this, it expects textual parts of your views to be broken up into fine-grained units (ideally without HTML), each identified by a unique keyword and stored in a topic + locale specific dictionary file (see [how are translations stored](#how-are-translations-stored)). 
-
-![diagram](https://www.lucinda-framework.com/internationalization-api.svg)
-
-This way your HTML view becomes a web of units expected to be translated on compilation, as in example below:
-
-```html
-<html>
-	<body>
-		<h1>__("title")</h2>
-		<p>__("description")</p>
-	</body>
-</html>
-```
-
-Since the logic of view rendering/compilation is a MVC API's concern, instead of performing keyword replacement with translations based on detected locale in response to be rendered, API provides developers a platform able to automatically detect user locale as well as setting/getting translations based on following steps:
-
-- **[configuration](#configuration)**: setting up an XML file where API is configured for locale detection and translations storage
-- **[execution](#execution)**: creating a [Lucinda\Internationalization\Wrapper](https://github.com/aherne/php-internationalization-api/blob/master/src/Wrapper.php) instance based on above, to use in getting/setting translations by keyword
-
-API is fully PSR-4 compliant, only requiring PHP 8.1+ interpreter and SimpleXML extension. To quickly see how it works, check:
-
-- **[installation](#installation)**: describes how to install API on your computer, in light of steps above
-- **[unit tests](#unit-tests)**: API has 100% Unit Test coverage, using [UnitTest API](https://github.com/aherne/unit-testing) instead of PHPUnit for greater flexibility
-- **[example](https://github.com/aherne/php-internationalization-api/blob/master/tests/WrapperTest.php)**: shows a deep example of API functionality based on unit test for [Lucinda\Internationalization\Wrapper](https://github.com/aherne/php-internationalization-api/blob/master/src/Wrapper.php)
-
-### How are locales detected
-
-A locale is understood by this API as a combination of a double digit lowercase ISO language code and a double digit uppercase ISO country code (eg: *en_US*) joined by underscore. API is able to detect user locale based on following mechanisms:
-
-- **header**: by value of *Accept-Language* request header (eg: $_SERVER["HTTP_ACCEPT_LANGUAGE"]= "fr-FR, fr;q=0.9, en;q=0.8, de;q=0.7, *;q=0.5");
-- **request**: by value of *locale* querystring parameter (eg: $_GET["locale"] = "fr_FR");
-- **session**: by value of *locale* session parameter (eg: $_SESSION["locale"] = "fr_FR");
-
-If locale could not be detected, the default (specific to your application) will be used instead. 
-
-### How are translations stored
-
-Translations are expected by API to be stored in JSON files. Each JSON file is found on disk at **folder/locale/domain.extension** path where:
-
-- *folder*: folder in your application root where translations are placed. Default: "locale"
-- *locale*: locale/language in which translations will be looked after. Example: "fr_FR"
-- *domain*: name of translation file. Default: "messages"
-- *extension*: translation file extension. Default: "json"
-
-Structure of that file is a dictionary where key is a short keyword that identifies each unit to be translated while value is translation text that will replace keyword when view is compiled. This means for each domain, JSON file must contain same keywords, only with different values specific to locale/language. If a keyword has no matching translation in JSON file, it will appear literally is when view is compiled (aligning with GETTEXT standards).
-
-Examples:
-
-- locale/en_US/greetings.json: 
-```json
-{"hello":"Hello!", "welcome":"Welcome to my site, %0!"}
-```
-- locale/ro_RO/greetings.json: 
-```json
-{"hello":"Salut!", "welcome":"Bun venit pe situl meu, %0!"}
-```
-
-## Configuration
-
-To configure this API you must have a XML with a **internationalization** tag whose syntax is:
-
-```xml
-<internationalization method="..." folder="..." locale="..." domain="..." extension="..."/>
-```
-
-Where:
-
-- *method*: (mandatory) identifies how locales are detected  (see [how are locales detected](#how-are-locales-detected)). Can be: header, request, session!
-- *folder*: (optional) folder in your application root where translations are placed (see [how are translations stored](#how-are-translations-stored)). If not set, "locale" is assumed!
-- *locale*: (mandatory) default locale in which translations will be looked after (see [how are translations stored](#how-are-translations-stored)). Eg: en_US
-- *domain*: (optional) name of translation file (see [how are translations stored](#how-are-translations-stored)). If not set, "messages" is assumed!
-- *extension*: (optional) translation file extension (see [how are translations stored](#how-are-translations-stored)). If not set, "json" is assumed!
-
-## Execution
-
-Now that XML is configured, you can initialize API using [Lucinda\Internationalization\Wrapper](https://github.com/aherne/php-internationalization-api/blob/master/src/Wrapper.php):
-
-```php
-$object = new Lucinda\Internationalization\Wrapper(simplexml_load_file(XML_FILE_NAME), $_GET, getallheaders());
-```
-
-This class reads XML and user request, compiles internationalization settings and makes possible to set and get translations based on following public methods:
-
-| Method | Arguments | Returns | Description |
-| --- | --- | --- | --- |
-| __construct | \SimpleXMLElement $xml, array $requestParameters, array $requestHeaders | void | Compiles internationalization settings based on XML and user requests |
-| getReader | void | [Lucinda\Internationalization\Reader](https://github.com/aherne/php-internationalization-api/blob/master/src/Reader.php) | Gets instance to use in getting translations |
-| getWriter | void | [Lucinda\Internationalization\Writer](https://github.com/aherne/php-internationalization-api/blob/master/src/Writer.php) | Gets instance to use in setting translations |
-
-Once instance is made, unit translations can be operated using following methods:
-
-- **getReader**: gets a [Lucinda\Internationalization\Reader](#class-reader) object able to retrieve translations from [storage](#how-are-translations-stored) based on [detected locale](#how-are-locales-detected)
-- **getWriter**: gets a [Lucinda\Internationalization\Writer](https://github.com/aherne/php-internationalization-api/blob/master/src/Writer.php) object able to save/delete translations from [storage](#how-are-translations-stored) based on [detected locale](#how-are-locales-detected) using 
+- XML configuration for locale detection and translation storage
+- request, session, or `Accept-Language` locale detection
+- locale fallback chain: preferred locale, language-only locale, default locale
+- JSON translation dictionaries grouped by locale and domain
+- lookup helpers for single translations, plural translations, existence checks, and full-domain reads
+- writer support for adding, removing, and saving translations
 
 ## Installation
-
-First choose a folder, associate it to a domain then write this command in its folder using console:
 
 ```console
 composer require lucinda/internationalization
 ```
 
-Then create a *configuration.xml* file holding configuration settings (see [configuration](#configuration) above) and a *index.php* file in project root with following code:
+Requirements:
+
+- PHP 8.1+
+- `ext-SimpleXML`
+
+## Runtime Flow
+
+Create a `Wrapper` from XML, request parameters, and request headers:
 
 ```php
-require(__DIR__."/vendor/autoload.php");
+require __DIR__."/vendor/autoload.php";
 
-$request = new Lucinda\Internationalization\Wrapper();
-$reader = $request->getReader();
+$xml = simplexml_load_file("configuration.xml");
+$headers = function_exists("getallheaders") ? getallheaders() : [];
+
+$wrapper = new Lucinda\Internationalization\Wrapper($xml, $_GET, $headers);
+$reader = $wrapper->getReader();
+
+echo $reader->getTranslation("homepage.title");
 ```
 
-Then intervene before response is being rendered to replace unit keywords with translations. For example if your HTML is:
+`Wrapper` compiles the configured settings, detects a preferred locale, verifies that a supported locale folder exists, then exposes:
 
+- `getReader()`: returns a `Reader` for translation lookup
+- `getWriter()`: returns a `Writer` for editing the active locale's default domain file
 
-```html
-<html>
-	<body>
-		<h1>__("title")</h2>
-		<p>__("description")</p>
-	</body>
-</html>
+## Configuration
+
+The root XML must contain one `internationalization` tag:
+
+```xml
+<xml>
+    <internationalization
+        method="request"
+        locale="en_US"
+        folder="locale"
+        domain="messages"
+        extension="json"/>
+</xml>
 ```
 
-Then this regex will perform perform detected locale-specific translations replacement:
+Attributes:
+
+| Attribute | Required | Default | Description |
+| --- | --- | --- | --- |
+| `method` | yes | none | Locale detection method: `header`, `request`, or `session` |
+| `locale` | yes | none | Default locale, such as `en_US` |
+| `folder` | no | `locale` | Base folder containing locale subfolders |
+| `domain` | no | `messages` | Default translation file name without extension |
+| `extension` | no | `json` | Translation file extension |
+
+Locale values must use `ll` or `ll_CC` format, for example `en`, `fr`, `en_US`, or `fr_FR`.
+
+## Locale Detection
+
+Supported detection methods are defined by `LocaleDetectionMethod`:
+
+| Method | Source |
+| --- | --- |
+| `header` | `Accept-Language` request header |
+| `request` | `locale` request parameter |
+| `session` | `$_SESSION["locale"]`, overridden by `locale` request parameter |
+
+Header detection parses quality weights and normalizes language tags:
+
+```text
+Accept-Language: fr-FR;q=0.5,en-us;q=0.9,en;q=0.3
+```
+
+The detected locale is `en_US`.
+
+When using `method="session"`, a PHP session must already be started. After detection, the chosen supported locale is written back to `$_SESSION["locale"]`.
+
+## Locale Fallbacks
+
+After detection, the package checks supported locale folders in this order:
+
+```text
+preferred locale -> language-only locale -> default locale
+```
+
+For example, if the request asks for `fr_CA` and `folder="locale"`, lookup order is:
+
+```text
+locale/fr_CA
+locale/fr
+locale/en_US
+```
+
+`Wrapper` selects the first locale folder that exists. If none exist, it throws `ConfigurationException`.
+
+`Reader` also merges translation files in fallback order for each domain, so missing keys in the preferred locale can still come from the default locale.
+
+## Translation Files
+
+Translations are stored as JSON objects:
+
+```text
+{folder}/{locale}/{domain}.{extension}
+```
+
+Example:
+
+```text
+locale/en_US/messages.json
+locale/fr_FR/messages.json
+locale/en_US/admin.json
+```
+
+JSON files must be objects with string keys and string values:
+
+```json
+{
+    "homepage.title": "Welcome",
+    "homepage.greeting": "Hello {name}",
+    "cart.items.one": "{count} item",
+    "cart.items.other": "{count} items"
+}
+```
+
+Invalid JSON, lists, nested objects, numeric values, or other non-string values throw `TranslationInvalidException`.
+
+## Reading Translations
+
+Get one translation:
 
 ```php
-$response = preg_replace_callback('/__\("([^"]+)"\)/', function($matches) use ($reader) { return $reader->getTranslation($matches[1]); }, $response);
+$title = $reader->getTranslation("homepage.title");
 ```
 
-## Unit Tests
+Use a custom domain:
 
-For tests and examples, check following files/folders in API sources:
+```php
+$label = $reader->getTranslation("users.create", "admin");
+```
 
-- [test.php](https://github.com/aherne/php-internationalization-api/blob/master/test.php): runs unit tests in console
-- [unit-tests.xml](https://github.com/aherne/php-internationalization-api/blob/master/unit-tests.xml): sets up unit tests
-- [tests](https://github.com/aherne/php-internationalization-api/tree/v3.0.0/tests): unit tests for classes from [src](https://github.com/aherne/php-internationalization-api/tree/v3.0.0/src) folder
+If a key does not exist, the key itself is returned.
 
-## Reference Guide
+Interpolate placeholders:
 
-### Class Reader
+```php
+echo $reader->getTranslation("homepage.greeting", null, ["name"=>"Maria"]);
+```
 
-[Lucinda\Internationalization\Reader](https://github.com/aherne/php-internationalization-api/blob/master/src/Reader.php) encapsulates retrieving unit translations from [storage](#how-are-translations-stored) and defines following relevant public methods:
+For this translation:
 
-| Method | Arguments | Returns | Description |
-| --- | --- | --- | --- |
-| getTranslation | string $key, string $domain=null | string | Gets value of translation based on locale. If none found, value of $key is returned! |
+```json
+{
+    "homepage.greeting": "Hello {name}"
+}
+```
 
-### Class Writer
+the output is:
 
-[Lucinda\Internationalization\Writer](https://github.com/aherne/php-internationalization-api/blob/master/src/Writer.php) encapsulates adding/updating/deleting unit translations from [storage](#how-are-translations-stored) and defines following relevant public methods:
+```text
+Hello Maria
+```
 
-| Method | Arguments | Returns | Description |
-| --- | --- | --- | --- |
-| setTranslation | string $key, string $value | void | Sets a unit translation for detected locale based on its keyword and value. |
-| unsetTranslation | string $key| void | Deletes a unit translation for detected locale based on its keyword |
-| save | void | void | Persists changes to JSON translation file. |
+Read plural forms:
+
+```php
+echo $reader->getPluralTranslation("cart.items", 1);
+echo $reader->getPluralTranslation("cart.items", 3);
+```
+
+Plural lookup uses `.one` when `abs($count) == 1`, otherwise `.other`. The `count` placeholder is added automatically.
+
+Check for a translation:
+
+```php
+if ($reader->hasTranslation("homepage.title")) {
+    // key exists in the merged fallback translations
+}
+```
+
+Read every translation in a domain:
+
+```php
+$translations = $reader->getTranslations();
+$admin = $reader->getTranslations("admin");
+```
+
+## Writing Translations
+
+`Writer` edits the active preferred locale and default domain configured in `Settings`.
+
+```php
+$writer = $wrapper->getWriter();
+$writer->setTranslation("homepage.title", "Welcome");
+$writer->setTranslation("homepage.greeting", "Hello {name}");
+$writer->unsetTranslation("old.key");
+$writer->save();
+```
+
+If the locale folder does not exist, `Writer` tries to create it. Files are saved as pretty-printed Unicode-safe JSON.
+
+## Exceptions
+
+| Exception | Meaning |
+| --- | --- |
+| `ConfigurationException` | XML is missing or invalid, locale is invalid, session mode is used without a started session, or no supported locale folder exists |
+| `DomainNotFoundException` | No translation file exists for the requested domain across locale fallbacks |
+| `TranslationInvalidException` | Translation JSON cannot be decoded or is not a string-to-string JSON object |
+| `TranslationFileException` | Translation folders/files cannot be read, created, or written |
+
+## Testing
+
+This repository uses `lucinda/unit-testing`.
+
+```console
+php test.php
+```
+
+Tests live in `tests/`.
+

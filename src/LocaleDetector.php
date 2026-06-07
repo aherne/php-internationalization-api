@@ -7,7 +7,7 @@ namespace Lucinda\Internationalization;
  *
  * <internationalization locale="en_US" method="session"/>
  */
-class LocaleDetector
+final class LocaleDetector
 {
     public const PARAMETER_NAME = "locale";
     private ?string $detectedLocale = null;
@@ -65,14 +65,36 @@ class LocaleDetector
      */
     private function detectByHeaders(array $requestHeaders): ?string
     {
-        if (isset($requestHeaders["Accept-Language"])) {
-            $matches = [];
-            preg_match_all("/(([a-z]{2})\-([A-Z]{2}))/", $requestHeaders["Accept-Language"], $matches);
-            if (!empty($matches[1])) {
-                return $matches[2][0]."_".$matches[3][0];
-            }
+        $headers = array_change_key_case($requestHeaders, CASE_LOWER);
+        if (!isset($headers["accept-language"])) {
+            return null;
         }
-        return null;
+
+        $locales = [];
+        foreach (explode(",", $headers["accept-language"]) as $position => $language) {
+            $parts = array_map("trim", explode(";", $language));
+            $locale = $this->normalizeLocale($parts[0]);
+            if ($locale === null) {
+                continue;
+            }
+
+            $quality = 1.0;
+            if (isset($parts[1]) && preg_match("/^q=([0-9.]+)$/", $parts[1], $matches)) {
+                $quality = (float) $matches[1];
+            }
+            $locales[] = ["locale"=>$locale, "quality"=>$quality, "position"=>$position];
+        }
+
+        if (!$locales) {
+            return null;
+        }
+
+        usort(
+            $locales,
+            fn (array $first, array $second): int => $second["quality"] <=> $first["quality"] ?: $first["position"] <=> $second["position"]
+        );
+
+        return $locales[0]["locale"];
     }
 
     /**
@@ -84,7 +106,7 @@ class LocaleDetector
     private function detectByRequestParameters(array $requestParameters): ?string
     {
         if (isset($requestParameters[self::PARAMETER_NAME])) {
-            return $requestParameters[self::PARAMETER_NAME];
+            return $this->normalizeLocale($requestParameters[self::PARAMETER_NAME]);
         }
         return null;
     }
@@ -100,12 +122,27 @@ class LocaleDetector
     {
         $detectedLocale = null;
         if (isset($sessionParameters[self::PARAMETER_NAME])) {
-            $detectedLocale = $sessionParameters[self::PARAMETER_NAME];
+            $detectedLocale = $this->normalizeLocale($sessionParameters[self::PARAMETER_NAME]);
         }
         if (isset($requestParameters[self::PARAMETER_NAME])) {
-            $detectedLocale = $requestParameters[self::PARAMETER_NAME];
+            $detectedLocale = $this->normalizeLocale($requestParameters[self::PARAMETER_NAME]);
         }
         return $detectedLocale;
+    }
+
+    /**
+     * Normalizes locale tags to ll or ll_CC.
+     *
+     * @param  string $locale
+     * @return string|null
+     */
+    private function normalizeLocale(string $locale): ?string
+    {
+        $locale = str_replace("-", "_", trim($locale));
+        if (preg_match("/^([a-z]{2})(?:_([a-z]{2}))?$/i", $locale, $matches)) {
+            return strtolower($matches[1]).(!empty($matches[2]) ? "_".strtoupper($matches[2]) : "");
+        }
+        return null;
     }
 
     /**

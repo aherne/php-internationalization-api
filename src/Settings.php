@@ -5,8 +5,10 @@ namespace Lucinda\Internationalization;
 /**
  * Encapsulates internationalization settings required in order to write to or read from translation files.
  */
-class Settings
+final class Settings
 {
+    private const LOCALE_PATTERN = "/^[a-z]{2}(_[A-Z]{2})?$/";
+
     private string $domain = "messages";
     private string $folder = "locale";
     private string $extension = "json";
@@ -72,6 +74,7 @@ class Settings
         if (!$defaultLocale) {
             throw new ConfigurationException("Attribute 'locale' is mandatory for 'internationalization' tag");
         }
+        $this->validateLocale($defaultLocale);
         $this->defaultLocale = $defaultLocale;
     }
 
@@ -158,9 +161,11 @@ class Settings
      * Sets preferred locale to be used when translating
      *
      * @param string $locale Country and language ISO codes (2) concatenated by _
+     * @throws ConfigurationException If locale is invalid.
      */
     public function setPreferredLocale(string $locale): void
     {
+        $this->validateLocale($locale);
         $this->preferredLocale = $locale;
     }
 
@@ -172,5 +177,34 @@ class Settings
     public function getPreferredLocale(): string
     {
         return $this->preferredLocale;
+    }
+
+    /**
+     * Gets fallback locales in lookup order.
+     *
+     * @return string[]
+     */
+    public function getLocaleFallbacks(): array
+    {
+        $locales = [$this->preferredLocale];
+        if (str_contains($this->preferredLocale, "_")) {
+            $locales[] = substr($this->preferredLocale, 0, 2);
+        }
+        $locales[] = $this->defaultLocale;
+
+        return array_values(array_unique($locales));
+    }
+
+    /**
+     * Checks locale format.
+     *
+     * @param  string $locale
+     * @throws ConfigurationException If locale is invalid.
+     */
+    private function validateLocale(string $locale): void
+    {
+        if (!preg_match(self::LOCALE_PATTERN, $locale)) {
+            throw new ConfigurationException("Invalid locale: ".$locale);
+        }
     }
 }
